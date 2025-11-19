@@ -41,7 +41,9 @@ class RMSNorm(nn.Module):
 
     def forward(self, x):
         # Compute the norm of the input tensor and divide by the norm
+        rms = torch.sqrt(torch.mean(x * x, dim=-1, keepdim=True) + self.eps)
         # Scale the normalized tensor by the learned weight parameter
+        output = x / rms * self.weight
         return output
 
 class CausalSelfAttention(nn.Module):
@@ -186,10 +188,19 @@ class TransformerDecoderBlock(nn.Module):
     def __init__(self, config):
         super().__init__()
         # Initialize the layers
-        raise NotImplementedError
+        self.layer_norm_1 = RMSNorm(config.n_embd)
+        self.self_attention = CausalSelfAttention(config)
+        self.layer_norm_2 = RMSNorm(config.n_embd)
+        self.mlpf = nn.Sequential(
+            nn.Linear(config.n_embd, 4 * config.n_embd),
+            BERTGELU(),
+            nn.Linear(4 * config.n_embd, config.n_embd),
+            nn.Dropout(config.resid_pdrop)
+        )
     def forward(self, x):
         # Forward pass through the Decoder Layer
-        out = ...
+        out = x + self.self_attention(self.layer_norm_1(x))
+        out = out + self.mlpf(self.layer_norm_2(out))
         return out
 
 
