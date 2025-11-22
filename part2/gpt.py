@@ -111,19 +111,23 @@ class CausalSelfAttention(nn.Module):
             Tuple[torch.Tensor, torch.Tensor]: Tuple containing the modified query and key tensors.
         """
         # Generate RoPE embeddings dynamically based on T
-        seq_pos = ...  # Shape: (T)
-        freqs = ...    # Shape: (T, dim // 2)
-        pos_emb = ...  # Shape: (1, 1, T, dim)
+        device = xq.device
+        seq_pos = torch.arange(T, device=device, dtype=torch.float32)  # Shape: (T)
+        freqs = torch.outer(seq_pos, self.inv_freq.to(device))    # Shape: (T, dim // 2)
+        pos_emb = torch.cat([freqs, freqs], dim=-1).unsqueeze(0).unsqueeze(0) # Shape: (1, 1, T, dim)
         
         # Split pos into sin and cos components, repeating each to match xq and xk dimensions
-        pos_sin = ...
-        pos_cos = ...
+        pos_sin = torch.sin(pos_emb)
+        pos_cos = torch.cos(pos_emb)
         
         # Apply RoPE transformation: pair and rotate dimensions
+        def rotate_dim(x):
+            x1 = x[..., :x.shape[-1]//2]
+            x2 = x[..., x.shape[-1]//2:]
+            return torch.cat([-x2, x1], dim=-1)
         # Rotate query and key tensors
-        xq_rot = ...
-        xk_rot = ...
-        raise NotImplementedError
+        xq_rot = xq * pos_cos + rotate_dim(xq) * pos_sin
+        xk_rot = xk * pos_cos + rotate_dim(xk) * pos_sin
         
         return xq_rot, xk_rot
         
