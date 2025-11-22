@@ -472,24 +472,39 @@ class GPT(nn.Module):
             idx_cond = idx if idx.size(1) <= self.block_size else idx[:, -self.block_size:]
 
             # forward the model to get the logits for the index in the sequence
+            logits = self.forward(idx_cond)
             # pluck the logits at the final step and scale by desired temperature
+            logits = logits[:, -1, :] / temperature
 
             if not do_sample:
                 # take the most likely token
-                idx_next = ...
+                idx_next = torch.argmax(logits, dim=-1, keepdim=True)
             
             else:
                 # apply softmax to convert logits to (normalized) probabilities
-
+                probs = F.softmax(logits, dim=-1)
                 # optionally only consider top-k logits for sampling. 
                 if top_k is not None:
-                    pass
+                    v, _ = torch.topk(probs, min(top_k, probs.size(-1)))
+                    probs[probs < v[:, [-1]]] = 0
+                    probs = probs / probs.sum(dim=-1, keepdim=True)
 
                 # optionally apply top-p sampling
                 if top_p is not None:
-                    pass
+                    sorted_probs, sorted_indices = torch.sort(probs, descending=True, dim=-1)
+                    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+
+                    sorted_indices_remove = cumulative_probs > top_p
+                    sorted_indices_remove[..., 1:] = sorted_indices_remove[..., :-1].clone()
+                    sorted_indices_remove[..., 0] = False
+                    sorted_probs[sorted_indices_remove] = 0.0
+
+                    probs = probs.scatter(dim=-1, index=sorted_indices, src=sorted_probs)
+                    probs = probs / probs.sum(dim=-1, keepdim=True)
+            
+                idx_next = torch.multinomial(probs, num_samples=1)
             
             # append sampled index to the running sequence and continue
-            idx = ...
+            idx = torch.cat((idx, idx_next), dim=1)
 
         return idx
