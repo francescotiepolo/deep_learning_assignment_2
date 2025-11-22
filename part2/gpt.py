@@ -150,7 +150,12 @@ class CausalSelfAttention(nn.Module):
         # Mask the calculated attention weights with the mask parameter.
 
         if self.use_flash_attn:
-            y = ...
+            y = F.scaled_dot_product_attention(
+                q, k, v,
+                attn_mask=None,
+                dropout_p=self.attn_dropout.p if self.training else 0.0,
+                is_causal=True
+            )
         else:
             # Compute attention scores
             att = (q @ k.transpose(-2, -1)) / (math.sqrt(k.size(-1)))
