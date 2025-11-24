@@ -73,9 +73,16 @@ class MessageGraphConvolution(nn.Module):
 
         Hint: check out torch.Tensor.index_add function
         """
-        messages = ...
-        aggregated_messages = ...
-        sum_weight = ...
+        num_nodes = x.size(0)
+        num_features = x.size(1)
+
+        messages = x[edge_index[0]] 
+        aggregated_messages = torch.zeros(num_nodes, num_features, device=x.device)
+        aggregated_messages.index_add_(0, edge_index[1], messages)
+        sum_weight = torch.zeros(num_nodes, dtype=x.dtype, device=x.device)
+        sum_weight.index_add_(0, edge_index[1], torch.ones(edge_index[1].size(0), dtype=x.dtype, device=x.device))
+        sum_weight = torch.clamp(sum_weight, min=1.0)
+        aggregated_messages = aggregated_messages / sum_weight.unsqueeze(1)
 
         return aggregated_messages
 
@@ -87,7 +94,7 @@ class MessageGraphConvolution(nn.Module):
         :param messages: messages vector with shape [num_nodes, num_in_features]
         :return: updated values of nodes. shape: [num_nodes, num_out_features]
         """
-        x = ...
+        x = F.linear(messages, self.W) + F.linear(x, self.B)
         return x
 
     def forward(self, x, edge_index):
