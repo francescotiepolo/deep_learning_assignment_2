@@ -26,7 +26,7 @@ class MatrixGraphConvolution(nn.Module):
         """
         sources, destinations = edge_index
         adjacency_matrix = torch.zeros((num_nodes, num_nodes), device=edge_index.device)
-        adjacency_matrix[sources, destinations] = 1.0
+        adjacency_matrix[destinations, sources] = 1.0
         return adjacency_matrix
 
     def make_inverted_degree_matrix(self, edge_index, num_nodes):
