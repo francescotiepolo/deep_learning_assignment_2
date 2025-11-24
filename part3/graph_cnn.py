@@ -24,7 +24,9 @@ class MatrixGraphConvolution(nn.Module):
 
         Hint: A[i,j] -> there is an edge from node j to node i
         """
-        adjacency_matrix = ...
+        sources, destinations = edge_index
+        adjacency_matrix = torch.zeros((num_nodes, num_nodes), device=edge_index.device)
+        adjacency_matrix[sources, destinations] = 1.0
         return adjacency_matrix
 
     def make_inverted_degree_matrix(self, edge_index, num_nodes):
@@ -35,9 +37,9 @@ class MatrixGraphConvolution(nn.Module):
         :param num_nodes: number of nodes in the graph.
         :return: inverted degree matrix with shape [num_nodes, num_nodes]. Set degree of nodes without an edge to 1.
         """
-        degree_vector = ...
-        inverted_degree_vector = ...
-        inverted_degree_matrix = ...
+        degree_vector = self.make_adjacency_matrix(edge_index, num_nodes).sum(dim=1)
+        inverted_degree_vector = 1.0 / torch.clamp(degree_vector, min=1.0)
+        inverted_degree_matrix = torch.diag(inverted_degree_vector)
         return inverted_degree_matrix
 
     def forward(self, x, edge_index):
@@ -50,7 +52,7 @@ class MatrixGraphConvolution(nn.Module):
         """
         A = self.make_adjacency_matrix(edge_index, x.size(0))
         D_inv = self.make_inverted_degree_matrix(edge_index, x.size(0))
-        out = ...
+        out = F.linear(D_inv @ A @ x, self.W) + F.linear(x, self.B)
         return out
 
 class MessageGraphConvolution(nn.Module):
