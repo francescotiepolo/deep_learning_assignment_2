@@ -153,6 +153,9 @@ class GraphAttention(nn.Module):
         aggregated_messages = torch.zeros(x.size(0), activations.size(1), dtype=x.dtype, device=x.device)
         aggregated_messages.index_add_(0, destinations, weighted_messages)
         aggregated_messages = aggregated_messages / softmax_denominator.unsqueeze(1)
-        return aggregated_messages, {'edge_weights': edge_weights_numerator, 'softmax_weights': softmax_denominator,
-                                     'messages': messages}
 
+        if debug:
+            return aggregated_messages, {'edge_weights': edge_weights_numerator, 'softmax_weights': softmax_denominator,
+                                         'messages': messages}
+        else:
+            return aggregated_messages

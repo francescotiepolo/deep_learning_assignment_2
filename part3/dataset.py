@@ -14,7 +14,7 @@ class DataModule(LightningDataModule):
         self.dataloader_kwargs = {
             'data': dataset[0],
             'num_neighbors': num_neighbors,
-            'num_workers': 15,
+            'num_workers': 0,
         }
 
     def train_dataloader(self):
