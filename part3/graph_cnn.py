@@ -137,17 +137,22 @@ class GraphAttention(nn.Module):
         edge_index, _ = add_self_loops(edge_index)
 
         sources, destinations = edge_index
-        activations = ...
-        messages = ...
+        activations = F.linear(x, self.W)
+        messages = activations[sources]
 
-        attention_inputs = ...
+        attention_inputs = torch.cat([messages, activations[destinations]], dim=1)
 
-        edge_weights_numerator = ...
-        weighted_messages = ...
+        edge_weights_numerator = torch.exp(F.leaky_relu(
+            (attention_inputs * self.a).sum(dim=1)
+        ))
+        weighted_messages = messages * edge_weights_numerator.unsqueeze(1)
 
-        softmax_denominator = ...
+        softmax_denominator = torch.zeros(x.size(0), dtype=x.dtype, device=x.device)
+        softmax_denominator.index_add_(0, destinations, edge_weights_numerator)
 
-        aggregated_messages = ...
+        aggregated_messages = torch.zeros(x.size(0), activations.size(1), dtype=x.dtype, device=x.device)
+        aggregated_messages.index_add_(0, destinations, weighted_messages)
+        aggregated_messages = aggregated_messages / softmax_denominator.unsqueeze(1)
         return aggregated_messages, {'edge_weights': edge_weights_numerator, 'softmax_weights': softmax_denominator,
                                      'messages': messages}
 
